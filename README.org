@@ -1,6 +1,10 @@
 #+TITLE: sense.py: monitor your sensors from the terminal
 #+AUTHOR: Enric Morales <me@enric.me>
 
+#+CAPTION: sense.py in action
+#+NAME: fig:sensepy-demo
+[[https://github.com/kiike/sense/raw/gh-pages/demo.gif]]
+
 * Project goal
   The goal of this project is to create a lightweight and useful sensor monitor.
   Its capabilities should be similar to those of [[https://github.com/mikaku/Monitorix][Monitorix]] and especially more
