@@ -1,0 +1,3 @@
+psutil==5.1.0
+PySensors==0.0.2
+urwid==1.3.1

@@ -1,0 +1,43 @@
+#+TITLE: sense.py: monitor your sensors from the terminal
+#+AUTHOR: Enric Morales <me@enric.me>
+
+* Project goal
+  The goal of this project is to create a lightweight and useful sensor monitor.
+  Its capabilities should be similar to those of [[https://github.com/mikaku/Monitorix][Monitorix]] and especially more
+  useful for overclocking and monitoring the system stability at a glance.
+
+* Inspiration
+  This program was started for the need to have a similar app like [[https://www.hwinfo.com/][HWInfo]], which
+  is supported only on Windows, available for Linux systems. Major props to
+  Martin Malik for such a great tool.
+
+* Features
+  - Lightweight codebase
+  - Urwid-based (NCurses-like) interface
+  - Monitoring of the following:
+    - CPU frequency
+    - CPU thermals
+    - System voltages
+    - System thermals
+    - CPU usage
+
+* Non-features
+  The aim of this program is not monitoring:
+  - Network throughput
+  - Disk usage
+  - Processes running
+
+* Requirements
+  This program takes advantages of the following libraries:
+  - Urwid to draw the interface
+  - python-sensors for binding with lm-sensors
+  - psutil to get the CPU usage
+
+* Installation
+  1. Clone this repo
+  2. Install the dependencies using `pip install -r requirements.txt`
+  3. Activate the virtualenv
+  4. Run the provided `sense.py`
+
+* License
+  This program is licensed under the terms of the ISC License.
