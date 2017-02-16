@@ -4,13 +4,17 @@ sens.py: log and output sensor values
 """
 
 from statistics import mean
+from pprint import pprint
 import time
+import sys
 import threading
 
+import collections
 import psutil
 import sensors
 import urwid
 
+QUEUE_LENGTH = 60 * 60  # One hour
 DATE_FMT = "%Y-%m-%d %H:%M:%S"
 QUIT_HINT = "Press 'q' to quit"
 BLACKLIST = ("PCH_CHIP_CPU_MAX_TEMP", "PCH_CHIP_TEMP", "PCH_CPU_TEMP",
@@ -53,7 +57,7 @@ def init_history(chips):
 
                 sensor_dict[feature.label] = {}
                 sensor_dict[feature.label]["info"] = {"unit": unit, "type": sensor_type}
-                sensor_dict[feature.label]["measurements"] = []
+                sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
 
         tree[str(chip)] = sensor_dict
 
@@ -62,17 +66,38 @@ def init_history(chips):
         core_id = "Core #{}".format(cpu)
         tree["CPU Usage"][core_id] = {}
         tree["CPU Usage"][core_id]["info"] = {"unit": " %", "type": "usage"}
-        tree["CPU Usage"][core_id]["measurements"] = []
+        tree["CPU Usage"][core_id]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
 
     tree["CPU Frequency"] = {}
     for cpu in range(psutil.cpu_count()):
         core_id = "Core #{}".format(cpu)
         tree["CPU Frequency"][core_id] = {}
         tree["CPU Frequency"][core_id]["info"] = {"unit": " MHz", "type": "freq"}
-        tree["CPU Frequency"][core_id]["measurements"] = []
+        tree["CPU Frequency"][core_id]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
 
     return tree
 
+def update_data_store(current_value, data_store):
+    measurements = data_store["measurements"]
+    data_store["measurements"].append(current_value)
+    data_store["cur"] = current_value
+
+    if "min" in data_store.keys():
+        data_store["min"] = min([v for v in measurements] + [data_store["min"]])
+    else:
+        data_store["min"] = current_value
+
+    if "max" in data_store.keys():
+        data_store["max"] = max([v for v in measurements] + [data_store["max"]])
+    else:
+        data_store["max"] = current_value
+
+    if "avg" in data_store.keys():
+        data_store["avg"] = mean([v for v in measurements])
+    else:
+        data_store["avg"] = current_value
+
+    return data_store
 
 def update_history(history, chips):
     """
@@ -82,20 +107,24 @@ def update_history(history, chips):
     for chip in chips:
         for feature in chip:
             try:
-                measurements = history[str(chip)][feature.label]["measurements"]
-                measurements.append(feature.get_value())
+                data_store = history[str(chip)][feature.label]
+                current_value = feature.get_value()
+                data_store = update_data_store(current_value, data_store)
+
             except KeyError:
                 continue
 
-    for i, usage in enumerate(psutil.cpu_percent(percpu=True)):
+    for i, current_value in enumerate(psutil.cpu_percent(percpu=True)):
         core_id = "Core #{}".format(i)
-        destination = history["CPU Usage"][core_id]["measurements"]
-        destination.append(usage)
+        data_store = history["CPU Usage"][core_id]
+        data_store = update_data_store(current_value, data_store)
 
     for i, freq in enumerate(psutil.cpu_freq(percpu=True)):
         core_id = "Core #{}".format(i)
-        destination = history["CPU Frequency"][core_id]["measurements"]
-        destination.append(float(round(freq.current)))
+        data_store = history["CPU Frequency"][core_id]
+        current_value = float(round(freq.current))
+        data_store = update_data_store(current_value, data_store)
+
 
     return history
 
@@ -123,20 +152,21 @@ def format_field(number, unit, s_type):
 
     return urwid.Text(field)
 
-def calculate_values(measurements, sensor_info):
+def calculate_values(sensor_data):
     """
     Return desired values from a measurements list, u
     """
 
+    sensor_info = sensor_data["info"]
     sensor_unit = sensor_info["unit"]
     sensor_type = sensor_info["type"]
 
-    current_value = format_field(measurements[-1], sensor_unit, sensor_type)
-    min_value = format_field(min(measurements), sensor_unit, sensor_type)
-    max_value = format_field(max(measurements), sensor_unit, sensor_type)
-    avg_value = format_field(mean(measurements), sensor_unit, sensor_type)
+    cur_value = format_field(sensor_data["cur"], sensor_unit, sensor_type)
+    min_value = format_field(sensor_data["min"], sensor_unit, sensor_type)
+    max_value = format_field(sensor_data["max"], sensor_unit, sensor_type)
+    avg_value = format_field(sensor_data["avg"], sensor_unit, sensor_type)
 
-    return current_value, min_value, max_value, avg_value
+    return cur_value, min_value, max_value, avg_value
 
 def format_output(history):
     """
@@ -155,8 +185,7 @@ def format_output(history):
             symbol = "\u2514" if is_last else "\u251c"
 
             feature_data = history[chip][feature]
-            values = calculate_values(feature_data["measurements"],
-                                      feature_data["info"])
+            values = calculate_values(feature_data)
 
             data_fields = urwid.Columns(values)
 
