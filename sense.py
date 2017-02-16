@@ -45,17 +45,17 @@ def init_history(chips):
         for feature in chip:
             if feature.label in BLACKLIST:
                 continue
-            else:
-                try:
-                    unit = sensor_units[feature.type]
-                    sensor_type = sensor_types[feature.type]
-                except IndexError:
-                    unit = " ???"
-                    sensor_type = " ???"
 
-                sensor_dict[feature.label] = {}
-                sensor_dict[feature.label]["info"] = {"unit": unit, "type": sensor_type}
-                sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
+            try:
+                unit = sensor_units[feature.type]
+                sensor_type = sensor_types[feature.type]
+            except IndexError:
+                unit = " ???"
+                sensor_type = " ???"
+
+            sensor_dict[feature.label] = {}
+            sensor_dict[feature.label]["info"] = {"unit": unit, "type": sensor_type}
+            sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
 
         tree[str(chip)] = sensor_dict
 
@@ -125,7 +125,6 @@ def update_history(history, chips):
         data_store = history["CPU Frequency"][core_id]
         current_value = float(round(freq.current))
         data_store = update_data_store(current_value, data_store)
-
 
     return history
 
