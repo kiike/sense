@@ -80,18 +80,18 @@ def update_data_store(current_value, data_store):
     data_store["measurements"].append(current_value)
     data_store["cur"] = current_value
 
-    if "min" in data_store.keys():
-        data_store["min"] = min([v for v in measurements] + [data_store["min"]])
+    if "min" in data_store:
+        data_store["min"] = min(*measurements, data_store["min"])
     else:
         data_store["min"] = current_value
 
-    if "max" in data_store.keys():
-        data_store["max"] = max([v for v in measurements] + [data_store["max"]])
+    if "max" in data_store:
+        data_store["max"] = max(*measurements, data_store["max"])
     else:
         data_store["max"] = current_value
 
-    if "avg" in data_store.keys():
-        data_store["avg"] = mean([v for v in measurements])
+    if "avg" in data_store:
+        data_store["avg"] = mean(measurements)
     else:
         data_store["avg"] = current_value
 
