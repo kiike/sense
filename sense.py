@@ -4,9 +4,7 @@ sens.py: log and output sensor values
 """
 
 from statistics import mean
-from pprint import pprint
 import time
-import sys
 import threading
 
 import collections
