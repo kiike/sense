@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-sens.py: log and output sensor values
+sense.py: log and output sensor values
 """
 
+import collections
 from statistics import mean
 import time
 import threading
 
-import collections
 import psutil
 import sensors
 import urwid
@@ -76,6 +76,9 @@ def init_history(chips):
     return tree
 
 def update_data_store(current_value, data_store):
+    """
+    Updates the min, max and average values of the data_store
+    """
     measurements = data_store["measurements"]
     data_store["measurements"].append(current_value)
     data_store["cur"] = current_value
