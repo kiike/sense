@@ -15,6 +15,7 @@ import urwid
 
 import confighandler
 from workers import cpu_msr
+from workers import nvidia_smi
 
 def init_history(chips, blacklist, queue_length):
     """
@@ -70,6 +71,17 @@ def init_history(chips, blacklist, queue_length):
         tree["CPU Frequency"][core_id]["info"] = {"unit": " MHz", "type": "freq"}
         tree["CPU Frequency"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
 
+    if os.path.exists("/usr/bin/nvidia-smi"):
+        for gpu in nvidia_smi.get_nvidia_smi_log():
+            tree[gpu["GPU ID"]] = {}
+            for sensor in gpu:
+                if sensor == "GPU ID":
+                    continue
+
+                tree[gpu["GPU ID"]][sensor] = {}
+                tree[gpu["GPU ID"]][sensor]["info"] = {"unit": gpu[sensor]["unit"],
+                                                       "type": gpu[sensor]["type"]}
+                tree[gpu["GPU ID"]][sensor]["measurements"] = collections.deque(maxlen=queue_length)
 
     return tree
 
@@ -134,6 +146,17 @@ def update_history(history, chips):
         # We haven't loaded the `msr` module or there's no MSR support on our
         # machine.
         pass
+
+    nvidia_gpus = nvidia_smi.get_nvidia_smi_log()
+    if nvidia_gpus:
+        for gpu in nvidia_gpus:
+            for sensor in gpu:
+                if sensor == "GPU ID":
+                    continue
+
+                data_store = history[gpu["GPU ID"]][sensor]
+                current_value = float(gpu[sensor]["value"].split()[0])
+                data_store = update_data_store(current_value, data_store)
 
     return history
 
