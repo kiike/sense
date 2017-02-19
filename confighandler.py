@@ -4,7 +4,7 @@ import logging
 import yaml
 
 DEFAULT_CONFIG = """
-    update_delay: 0.1
+    update_delay: 1
     queue_length: 3600  # One hour
     date_format: "%Y-%m-%d %H:%M:%S"
     quit_hint: Press "q" to quit
