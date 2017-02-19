@@ -30,10 +30,10 @@ def get_nvidia_smi_log():
                 "unit": " °C",
                 "type": "temp"
             },
-            "Fan Speed": {
+            "Fan PWM": {
                 "value": get_text(gpu, "fan_speed"),
                 "unit": " %",
-                "type": " RPM",
+                "type": "usage",
             },
             "Usage": {
                 "value": get_text(utilization, "gpu_util"),
