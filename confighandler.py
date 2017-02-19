@@ -94,6 +94,9 @@ def get_config():
         with open(config_file) as f:
             config = parse_config(f.read())
     else:
+        if not os.path.isdir(default_xdg_config_dir):
+            os.mkdir(default_xdg_config_dir)
+
         if not os.path.isdir(config_dir):
             os.mkdir(config_dir)
 
