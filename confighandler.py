@@ -5,7 +5,7 @@ import yaml
 
 DEFAULT_CONFIG = """
     update_delay: 1
-    queue_length: 3600  # One hour
+    queue_length: 3600  # One hour for update_delay=1
     date_format: "%Y-%m-%d %H:%M:%S"
     quit_hint: Press "q" to quit
     blacklist:
