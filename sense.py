@@ -7,12 +7,14 @@ import collections
 from statistics import mean
 import time
 import threading
+import os
 
 import psutil
 import sensors
 import urwid
 
 import confighandler
+from workers import cpu_msr
 
 def init_history(chips, blacklist, queue_length):
     """
@@ -45,6 +47,14 @@ def init_history(chips, blacklist, queue_length):
             sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=queue_length)
 
         tree[str(chip)] = sensor_dict
+
+    if os.path.exists("/dev/cpu/0/msr"):
+        tree["CPU VCCIN"] = {}
+        for cpu in range(psutil.cpu_count()):
+            core_id = "Core #{}".format(cpu)
+            tree["CPU VCCIN"][core_id] = {}
+            tree["CPU VCCIN"][core_id]["info"] = {"unit": " V", "type": "voltage"}
+            tree["CPU VCCIN"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
 
     tree["CPU Usage"] = {}
     for cpu in range(psutil.cpu_count()):
@@ -113,6 +123,17 @@ def update_history(history, chips):
         data_store = history["CPU Frequency"][core_id]
         current_value = float(round(freq.current))
         data_store = update_data_store(current_value, data_store)
+
+    try:
+        for core in range(psutil.cpu_count()):
+            core_id = "Core #{}".format(core)
+            current_value = cpu_msr.get_vccin(core)
+            data_store = history["CPU VCCIN"][core_id]
+            data_store = update_data_store(current_value, data_store)
+    except KeyError:
+        # We haven't loaded the `msr` module or there's no MSR support on our
+        # machine.
+        pass
 
     return history
 
