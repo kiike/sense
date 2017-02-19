@@ -16,14 +16,16 @@
   Martin Malik for such a great tool.
 
 * Features
-  - Lightweight codebase
+  - Easy on the CPU and your eyes
   - Urwid-based (NCurses-like) interface
   - Monitoring of the following:
     - CPU frequency
     - CPU thermals
+    - CPU voltage (VCCIN, similar to VCore)
     - System voltages
     - System thermals
     - CPU usage
+    - nVIDIA GTX-series usages, thermals and clocks
 
 * Non-features
   The aim of this program is not monitoring:
