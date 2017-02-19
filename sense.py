@@ -12,22 +12,9 @@ import psutil
 import sensors
 import urwid
 
-QUEUE_LENGTH = 60 * 60  # One hour
-DATE_FMT = "%Y-%m-%d %H:%M:%S"
-QUIT_HINT = "Press 'q' to quit"
-BLACKLIST = ("PCH_CHIP_CPU_MAX_TEMP", "PCH_CHIP_TEMP", "PCH_CPU_TEMP",
-             "AUXTIN1", "AUXTIN2", "AUXTIN3", "intrusion0", "intrusion1", "intrusion2",
-             "fan3", "fan5", "beep_enable")
+import confighandler
 
-PALETTE = (("bg", "default", "default"),
-           ("symbol", "dark gray", "default"),
-           ("chip", "dark cyan", "default"),
-           ("title", "light green", "default"),
-           ("date", "yellow", "default"),
-           ("quit_hint", "dark gray", "default"),
-           ("sensor", "light cyan", "default"))
-
-def init_history(chips):
+def init_history(chips, blacklist, queue_length):
     """
     Build a history tree that will collect all the measurements.
     """
@@ -43,7 +30,7 @@ def init_history(chips):
     for chip in chips:
         sensor_dict = {}
         for feature in chip:
-            if feature.label in BLACKLIST:
+            if feature.label in blacklist:
                 continue
 
             try:
@@ -55,7 +42,7 @@ def init_history(chips):
 
             sensor_dict[feature.label] = {}
             sensor_dict[feature.label]["info"] = {"unit": unit, "type": sensor_type}
-            sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
+            sensor_dict[feature.label]["measurements"] = collections.deque(maxlen=queue_length)
 
         tree[str(chip)] = sensor_dict
 
@@ -64,14 +51,15 @@ def init_history(chips):
         core_id = "Core #{}".format(cpu)
         tree["CPU Usage"][core_id] = {}
         tree["CPU Usage"][core_id]["info"] = {"unit": " %", "type": "usage"}
-        tree["CPU Usage"][core_id]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
+        tree["CPU Usage"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
 
     tree["CPU Frequency"] = {}
     for cpu in range(psutil.cpu_count()):
         core_id = "Core #{}".format(cpu)
         tree["CPU Frequency"][core_id] = {}
         tree["CPU Frequency"][core_id]["info"] = {"unit": " MHz", "type": "freq"}
-        tree["CPU Frequency"][core_id]["measurements"] = collections.deque(maxlen=QUEUE_LENGTH)
+        tree["CPU Frequency"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
+
 
     return tree
 
@@ -129,15 +117,15 @@ def update_history(history, chips):
     return history
 
 
-def update_footer():
+def update_footer(date_fmt, quit_hint):
     """
     Create a footer with the program name, the current date and time
     and a small hint to quit.
     """
 
     title = urwid.AttrMap(urwid.Text("sense.py", align="left"), "title")
-    date = urwid.AttrMap(urwid.Text(time.strftime(DATE_FMT), align="center"), "date")
-    quit_hint = urwid.AttrMap(urwid.Text(QUIT_HINT, align="right"), "quit_hint")
+    date = urwid.AttrMap(urwid.Text(time.strftime(date_fmt), align="center"), "date")
+    quit_hint = urwid.AttrMap(urwid.Text(quit_hint, align="right"), "quit_hint")
     return urwid.Columns((title, date, quit_hint))
 
 def format_field(number, unit, s_type):
@@ -199,14 +187,14 @@ def format_output(history):
 
     return urwid.SimpleListWalker([w for w in out])
 
-def update_frame(frame, loop, listwalker, chips, history):
+def update_frame(frame, loop, listwalker, chips, history, config):
     """ Loop that replaces the frame listwalker in-place. """
     while True:
         history = update_history(history, chips)
         listwalker[:] = format_output(history)
-        frame.footer = update_footer()
+        frame.footer = update_footer(config["date_format"], config["quit_hint"])
         loop.draw_screen()
-        time.sleep(1)
+        time.sleep(config["update_delay"])
 
 def key_handler(key):
     """ Handle keys such as q and Q for quit, etc."""
@@ -218,10 +206,14 @@ def main():
     Initialize screen, sensors, history and display measurements on the screen.
     """
 
+    config = confighandler.get_config()
+
     # Initialize the sensors and the history
     sensors.init()
     chips = [s for s in sensors.iter_detected_chips()]
-    history = init_history(chips)
+    history = init_history(chips,
+                           config["blacklist"],
+                           config["queue_length"])
     history = update_history(history, chips)
 
     # Create the output handler and a preliminary output
@@ -238,12 +230,13 @@ def main():
                             urwid.Columns(header)))
 
     frame = urwid.Frame(body, header=header)
-    loop = urwid.MainLoop(frame, unhandled_input=key_handler, palette=PALETTE)
+    loop = urwid.MainLoop(frame, unhandled_input=key_handler,
+                          palette=config["palette"])
 
     # Create the thread that will update the frame periodically
     frame_updater = threading.Thread(target=update_frame,
-                                     args=(frame, loop, listwalker,
-                                           chips, history))
+                                     args=(frame, loop, listwalker, chips,
+                                           history, config))
     frame_updater.start()
     loop.run()
 
