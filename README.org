@@ -35,8 +35,9 @@
 
 * Requirements
   This program takes advantages of the following libraries:
+  - Python 3+
   - Urwid to draw the interface
-  - python-sensors for binding with lm-sensors
+  - python-sensors from [[https://bitbucket.org/gleb_zhulik/][this repo]] for binding with lm-sensors
   - psutil to get the CPU usage
 
 * Installation
