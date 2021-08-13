@@ -8,12 +8,13 @@ from statistics import mean
 import time
 import threading
 import os
+import sys
 
 import psutil
 import sensors
 import urwid
 
-import confighandler
+from util import confighandler
 from workers import cpu_msr
 from workers import nvidia_smi
 
@@ -71,7 +72,7 @@ def init_history(chips, blacklist, queue_length):
         tree["CPU Frequency"][core_id]["info"] = {"unit": " MHz", "type": "freq"}
         tree["CPU Frequency"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
 
-    if os.path.exists("/usr/bin/nvidia-smi"):
+    if "nvidia-smi" not in blacklist and os.path.exists("/usr/bin/nvidia-smi"):
         for gpu in nvidia_smi.get_nvidia_smi_log():
             tree[gpu["GPU ID"]] = {}
             for sensor in gpu:
@@ -147,7 +148,9 @@ def update_history(history, chips):
         # machine.
         pass
 
-    nvidia_gpus = nvidia_smi.get_nvidia_smi_log()
+    nvidia_gpus = None
+    if os.path.exists("/usr/bin/nvidia-smi"):
+        nvidia_gpus = nvidia_smi.get_nvidia_smi_log()
     if nvidia_gpus:
         for gpu in nvidia_gpus:
             for sensor in gpu:
@@ -251,10 +254,11 @@ def main():
     """
 
     config = confighandler.get_config()
+    if not config: sys.exit()
 
     # Initialize the sensors and the history
     sensors.init()
-    chips = [s for s in sensors.iter_detected_chips()]
+    chips = [chip for chip in sensors.iter_detected_chips()]
     history = init_history(chips,
                            config["blacklist"],
                            config["queue_length"])
