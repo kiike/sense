@@ -61,7 +61,6 @@ def parse_palette(palette):
     """
 
     colors = []
-    import pdb; pdb.set_trace()
     for section in palette.keys():
         color_def = (section,
                      palette[section]["fg"],
