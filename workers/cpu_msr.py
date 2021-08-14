@@ -16,10 +16,13 @@ def get_msr_register(register, core):
 
     msr_path = '/dev/cpu/{}/msr'.format(core)
 
-    with open(msr_path, mode='rb') as f:
-        f.seek(register)
-        value = f.read(8)
-        value = struct.unpack('<Q', value)[0]
+    try:
+        with open(msr_path, mode='rb') as f:
+            f.seek(register)
+            value = f.read(8)
+            value = struct.unpack('<Q', value)[0]
+    except PermissionError:
+        return
 
     return value
 
@@ -30,4 +33,5 @@ def get_vccin(core):
     """
 
     register = get_msr_register(0x198, core)
-    return float(register >> 32) / float(1 << 13)
+    if register:
+        return float(register >> 32) / float(1 << 13)

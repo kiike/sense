@@ -4,6 +4,7 @@ sense.py: log and output sensor values
 """
 
 import collections
+import logging
 from statistics import mean
 import time
 import threading
@@ -17,6 +18,7 @@ import urwid
 from util import confighandler
 from workers import cpu_msr
 from workers import nvidia_smi
+
 
 def init_history(chips, blacklist, queue_length):
     """
@@ -50,13 +52,22 @@ def init_history(chips, blacklist, queue_length):
 
         tree[str(chip)] = sensor_dict
 
-    if os.path.exists("/dev/cpu/0/msr"):
+    msr_path = "/dev/cpu/0/msr"
+    if "msr" not in blacklist \
+        and os.path.exists(msr_path) \
+        and os.access(msr_path, os.R_OK):
+
         tree["CPU VCCIN"] = {}
         for cpu in range(psutil.cpu_count()):
             core_id = "Core #{}".format(cpu)
             tree["CPU VCCIN"][core_id] = {}
             tree["CPU VCCIN"][core_id]["info"] = {"unit": " V", "type": "voltage"}
             tree["CPU VCCIN"][core_id]["measurements"] = collections.deque(maxlen=queue_length)
+    else:
+        logging.warning("No access to MSR. Either run as root, enable reading "
+                        f"capabilites for {msr_path} or add 'msr' to blacklist to "
+                        "disable reading the MSR.  Press enter to continue.")
+        input()
 
     tree["CPU Usage"] = {}
     for cpu in range(psutil.cpu_count()):
@@ -86,30 +97,32 @@ def init_history(chips, blacklist, queue_length):
 
     return tree
 
-def update_data_store(current_value, data_store):
+
+def update_readouts(current_value, readouts):
     """
-    Updates the min, max and average values of the data_store
+    Updates the min, max and average values of the readouts
     """
-    measurements = data_store["measurements"]
-    data_store["measurements"].append(current_value)
-    data_store["cur"] = current_value
+    measurements = readouts["measurements"]
+    readouts["measurements"].append(current_value)
+    readouts["cur"] = current_value
 
-    if "min" in data_store:
-        data_store["min"] = min(*measurements, data_store["min"])
+    if "min" in readouts:
+        readouts["min"] = min(*measurements, readouts["min"])
     else:
-        data_store["min"] = current_value
+        readouts["min"] = current_value
 
-    if "max" in data_store:
-        data_store["max"] = max(*measurements, data_store["max"])
+    if "max" in readouts:
+        readouts["max"] = max(*measurements, readouts["max"])
     else:
-        data_store["max"] = current_value
+        readouts["max"] = current_value
 
-    if "avg" in data_store:
-        data_store["avg"] = mean(measurements)
+    if "avg" in readouts:
+        readouts["avg"] = mean(measurements)
     else:
-        data_store["avg"] = current_value
+        readouts["avg"] = current_value
 
-    return data_store
+    return readouts
+
 
 def update_history(history, chips):
     """
@@ -118,31 +131,27 @@ def update_history(history, chips):
 
     for chip in chips:
         for feature in chip:
-            try:
-                data_store = history[str(chip)][feature.label]
-                current_value = feature.get_value()
-                data_store = update_data_store(current_value, data_store)
-
-            except KeyError:
-                continue
+            readouts = history[str(chip)][feature.label]
+            current_value = feature.get_value()
+            readouts = update_readouts(current_value, readouts)
 
     for i, current_value in enumerate(psutil.cpu_percent(percpu=True)):
         core_id = "Core #{}".format(i)
-        data_store = history["CPU Usage"][core_id]
-        data_store = update_data_store(current_value, data_store)
+        readouts = history["CPU Usage"][core_id]
+        readouts = update_readouts(current_value, readouts)
 
     for i, freq in enumerate(psutil.cpu_freq(percpu=True)):
         core_id = "Core #{}".format(i)
-        data_store = history["CPU Frequency"][core_id]
+        readouts = history["CPU Frequency"][core_id]
         current_value = float(round(freq.current))
-        data_store = update_data_store(current_value, data_store)
+        readouts = update_readouts(current_value, readouts)
 
     try:
         for core in range(psutil.cpu_count()):
             core_id = "Core #{}".format(core)
             current_value = cpu_msr.get_vccin(core)
-            data_store = history["CPU VCCIN"][core_id]
-            data_store = update_data_store(current_value, data_store)
+            readouts = history["CPU VCCIN"][core_id]
+            readouts = update_readouts(current_value, readouts)
     except KeyError:
         # We haven't loaded the `msr` module or there's no MSR support on our
         # machine.
@@ -157,9 +166,9 @@ def update_history(history, chips):
                 if sensor == "GPU ID":
                     continue
 
-                data_store = history[gpu["GPU ID"]][sensor]
+                readouts = history[gpu["GPU ID"]][sensor]
                 current_value = float(gpu[sensor]["value"].split()[0])
-                data_store = update_data_store(current_value, data_store)
+                readouts = update_readouts(current_value, readouts)
 
     return history
 
@@ -175,6 +184,7 @@ def update_footer(date_fmt, quit_hint):
     quit_hint = urwid.AttrMap(urwid.Text(quit_hint, align="right"), "quit_hint")
     return urwid.Columns((title, date, quit_hint))
 
+
 def format_field(number, unit, s_type):
     """
     Make an urwid text out of a number and unit suitable for putting into columns.
@@ -186,6 +196,7 @@ def format_field(number, unit, s_type):
         field = "{:>7.3f}{:<3}".format(number, unit)
 
     return urwid.Text(field)
+
 
 def calculate_values(sensor_data):
     """
@@ -202,6 +213,7 @@ def calculate_values(sensor_data):
     avg_value = format_field(sensor_data["avg"], sensor_unit, sensor_type)
 
     return cur_value, min_value, max_value, avg_value
+
 
 def format_output(history):
     """
@@ -234,19 +246,26 @@ def format_output(history):
 
     return urwid.SimpleListWalker([w for w in out])
 
+
 def update_frame(frame, loop, listwalker, chips, history, config):
     """ Loop that replaces the frame listwalker in-place. """
     while True:
         history = update_history(history, chips)
         listwalker[:] = format_output(history)
         frame.footer = update_footer(config["date_format"], config["quit_hint"])
-        loop.draw_screen()
-        time.sleep(config["update_delay"])
+        try:
+            loop.draw_screen()
+            time.sleep(config["update_delay"])
+        except AssertionError:  # Urwid thread breaking, for instance
+            break
+
+
 
 def key_handler(key):
     """ Handle keys such as q and Q for quit, etc."""
     if key in ("q", "Q"):
         raise urwid.ExitMainLoop()
+
 
 def main():
     """

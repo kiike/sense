@@ -3,6 +3,7 @@ import logging
 
 import yaml
 
+
 DEFAULT_CONFIG = {
     "update_delay": 1,
     "queue_length": 3600,
@@ -55,6 +56,7 @@ DEFAULT_CONFIG = {
     }
 }
 
+
 def parse_palette(palette):
     """
     Return a list of tuples with the color definitions.
@@ -68,6 +70,7 @@ def parse_palette(palette):
         colors.append(color_def)
 
     return colors
+
 
 def parse_config(source):
     """
@@ -85,6 +88,7 @@ def parse_config(source):
             config[item] = yaml_config[item]
 
     return config
+
 
 def get_config():
     """
