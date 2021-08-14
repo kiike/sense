@@ -34,17 +34,19 @@
   - Processes running
 
 * Requirements
-  This program takes advantages of the following libraries:
+  To run this program, you will need.
   - Python 3+
-  - Urwid to draw the interface
+  - Urwid (the library that draws the UI)
   - python-sensors from [[https://bitbucket.org/gleb_zhulik/][this repo]] for binding with lm-sensors
   - psutil to get the CPU usage
+  - pyyaml for reasonable configuration reading/writing
 
-* Installation
+* Running
   1. Clone this repo
   2. Install the dependencies using `pip install -r requirements.txt`
   3. Activate the virtualenv
-  4. Run the provided `sense.py`
+  4. Run the provided `sense.py` as root to get all the CPU info, or as
+  user to get a more limited set of data.
 
 * License
   This program is licensed under the terms of the ISC License.
