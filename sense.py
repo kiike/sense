@@ -131,6 +131,8 @@ def update_history(history, chips):
 
     for chip in chips:
         for feature in chip:
+            if feature.label not in history[str(chip)].keys():
+                continue
             readouts = history[str(chip)][feature.label]
             current_value = feature.get_value()
             readouts = update_readouts(current_value, readouts)
